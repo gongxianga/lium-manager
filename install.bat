@@ -7,19 +7,56 @@ echo    Lium GPU 管理工具 - 一键安装
 echo ============================================
 echo.
 
-:: 查找系统 Python（优先用 py 启动器，避免调用 venv 里的 Python）
+:: 查找系统 Python（排除所有 venv 目录）
 set PYTHON_CMD=
-py -3 --version >nul 2>&1
-if %errorlevel% equ 0 (
-    set PYTHON_CMD=py -3
-) else (
-    :: 从注册表查找系统级 Python
-    for /f "tokens=2*" %%a in ('reg query "HKCU\Software\Python\PythonCore" /s /v ExecutablePath 2^>nul ^| findstr /i "python.exe"') do (
-        if not defined PYTHON_CMD set "PYTHON_CMD=%%b"
+
+:: 用 where 找所有 python，过滤掉 venv/virtualenv 路径
+for /f "tokens=*" %%p in ('where python 2^>nul') do (
+    echo %%p | findstr /i "venv Scripts\\python" >nul 2>&1
+    if %errorlevel% neq 0 (
+        if not defined PYTHON_CMD (
+            "%%p" -m pip --version >nul 2>&1
+            if %errorlevel% equ 0 set "PYTHON_CMD=%%p"
+        )
     )
-    if not defined PYTHON_CMD (
-        for /f "tokens=2*" %%a in ('reg query "HKLM\Software\Python\PythonCore" /s /v ExecutablePath 2^>nul ^| findstr /i "python.exe"') do (
-            if not defined PYTHON_CMD set "PYTHON_CMD=%%b"
+)
+
+:: 从注册表查找（排除 venv 路径）
+if not defined PYTHON_CMD (
+    for /f "tokens=2*" %%a in ('reg query "HKCU\Software\Python\PythonCore" /s /v ExecutablePath 2^>nul ^| findstr /i "python.exe"') do (
+        echo %%b | findstr /i "venv" >nul 2>&1
+        if %errorlevel% neq 0 if not defined PYTHON_CMD (
+            "%%b" -m pip --version >nul 2>&1
+            if %errorlevel% equ 0 set "PYTHON_CMD=%%b"
+        )
+    )
+)
+if not defined PYTHON_CMD (
+    for /f "tokens=2*" %%a in ('reg query "HKLM\Software\Python\PythonCore" /s /v ExecutablePath 2^>nul ^| findstr /i "python.exe"') do (
+        echo %%b | findstr /i "venv" >nul 2>&1
+        if %errorlevel% neq 0 if not defined PYTHON_CMD (
+            "%%b" -m pip --version >nul 2>&1
+            if %errorlevel% equ 0 set "PYTHON_CMD=%%b"
+        )
+    )
+)
+
+:: 搜索常见安装目录
+if not defined PYTHON_CMD (
+    for %%d in (
+        "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+        "%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
+        "%LOCALAPPDATA%\Programs\Python\Python310\python.exe"
+        "%LOCALAPPDATA%\Programs\Python\Python39\python.exe"
+        "C:\Python312\python.exe"
+        "C:\Python311\python.exe"
+        "C:\Python310\python.exe"
+    ) do (
+        if not defined PYTHON_CMD (
+            if exist %%d (
+                %%d -m pip --version >nul 2>&1
+                if %errorlevel% equ 0 set "PYTHON_CMD=%%d"
+            )
         )
     )
 )
