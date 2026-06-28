@@ -4,6 +4,7 @@
 import os
 import sys
 import json
+import subprocess
 import requests
 from typing import Optional
 
@@ -406,6 +407,24 @@ def manage_pod():
     pause()
 
 
+def update_program():
+    """更新程序"""
+    print("\n=== 更新程序 ===")
+    hr()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    try:
+        result = subprocess.run(["git", "pull"], cwd=script_dir, capture_output=True, text=True)
+        if result.returncode == 0:
+            print(result.stdout.strip() or "已是最新版本。")
+            if "Already up to date" not in result.stdout and "已是最新" not in result.stdout:
+                print("\n更新成功，请重新启动程序以生效。")
+        else:
+            print(f"更新失败: {result.stderr.strip()}")
+    except FileNotFoundError:
+        print("未找到 git 命令，请确认已安装 Git。")
+    pause()
+
+
 def set_api_key():
     """修改 API Key"""
     print("\n=== 修改 API Key ===")
@@ -434,6 +453,7 @@ def main():
         print("║  [3] 查看我的 Pods                ║")
         print("║  [4] 管理 Pod（停止/重启）        ║")
         print("║  [5] 修改 API Key                 ║")
+        print("║  [6] 更新程序                     ║")
         print("║  [0] 退出                         ║")
         print("╚══════════════════════════════════╝")
 
@@ -449,6 +469,8 @@ def main():
             manage_pod()
         elif choice == "5":
             set_api_key()
+        elif choice == "6":
+            update_program()
         elif choice == "0":
             print("再见！")
             break
