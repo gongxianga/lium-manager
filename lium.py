@@ -183,34 +183,7 @@ def list_available():
     print("\n=== 查看可用机器 ===")
     hr()
 
-    print("可设置筛选条件（直接回车跳过）：")
-    gpu_name = input("GPU 型号（如 RTX4090, A100, H100）: ").strip()
-
-    gpu_min = None
-    v = input("最少 GPU 数量: ").strip()
-    if v.isdigit():
-        gpu_min = int(v)
-
-    gpu_max = None
-    v = input("最多 GPU 数量: ").strip()
-    if v.isdigit():
-        gpu_max = int(v)
-
-    price_max = None
-    v = input("最高单卡价格（美元/小时/卡）: ").strip()
-    try:
-        if v:
-            price_max = float(v)
-    except ValueError:
-        pass
-
-    price_min = None
-    v = input("最低单卡价格（美元/小时/卡）: ").strip()
-    try:
-        if v:
-            price_min = float(v)
-    except ValueError:
-        pass
+    gpu_name = input("搜索 GPU 型号（如 RTX4090、A100、H100，直接回车显示全部）: ").strip()
 
     print("\n查询中...")
     all_items = fetch_all_executors()
@@ -219,7 +192,7 @@ def list_available():
         pause()
         return
 
-    items = filter_executors(all_items, gpu_name, gpu_min, gpu_max, price_min, price_max)
+    items = filter_executors(all_items, gpu_name, None, None, None, None)
 
     if not items:
         print(f"没有找到符合条件的机器（共查到 {len(all_items)} 台，均不符合筛选条件）。")
@@ -242,21 +215,7 @@ def rent_machine():
     print("\n=== 租用机器 ===")
     hr()
 
-    print("设置筛选条件查找机器（直接回车跳过）：")
-    gpu_name = input("GPU 型号（如 RTX4090, A100, H100）: ").strip()
-
-    gpu_count = None
-    v = input("GPU 数量: ").strip()
-    if v.isdigit():
-        gpu_count = int(v)
-
-    price_max = None
-    v = input("最高单卡价格（美元/小时/卡）: ").strip()
-    try:
-        if v:
-            price_max = float(v)
-    except ValueError:
-        pass
+    gpu_name = input("搜索 GPU 型号（如 RTX4090、A100、H100，直接回车显示全部）: ").strip()
 
     print("\n查询中...")
     all_items = fetch_all_executors()
@@ -265,7 +224,7 @@ def rent_machine():
         pause()
         return
 
-    items = filter_executors(all_items, gpu_name, gpu_count, gpu_count, None, price_max)
+    items = filter_executors(all_items, gpu_name, None, None, None, None)
     items.sort(key=lambda e: float(e.get("price_per_gpu") or 0))
 
     if not items:
