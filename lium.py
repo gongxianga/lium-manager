@@ -175,34 +175,18 @@ def list_available():
         pause()
         return
 
-    # 调试：显示原始响应结构
-    if isinstance(data, dict):
-        keys = list(data.keys())
-        print(f"[调试] 响应字段: {keys}")
-        for k in keys:
-            v = data[k]
-            if isinstance(v, list):
-                print(f"[调试] {k}: 列表，共 {len(v)} 条")
-                if v:
-                    print(f"[调试] 第一条样例: {json.dumps(v[0], ensure_ascii=False)[:300]}")
-            else:
-                print(f"[调试] {k}: {str(v)[:100]}")
-    elif isinstance(data, list):
-        print(f"[调试] 响应为列表，共 {len(data)} 条")
-        if data:
-            print(f"[调试] 第一条样例: {json.dumps(data[0], ensure_ascii=False)[:300]}")
-
     items = data if isinstance(data, list) else data.get("items") or data.get("data") or data.get("executors") or []
 
     if not items:
         print("没有找到符合条件的机器。")
-        # 尝试不带筛选再查一次
-        print("\n尝试不带筛选条件查询...")
-        raw = api_get("/executors", params={"size": 3})
-        if raw:
-            print(f"[调试] 无筛选原始响应: {json.dumps(raw, ensure_ascii=False)[:500]}")
         pause()
         return
+
+    # 调试：打印第一条所有字段名和值
+    if items:
+        print("[调试] 第一条记录所有字段:")
+        for k, v in items[0].items():
+            print(f"  {k}: {v}")
 
     print(f"\n找到 {len(items)} 台可用机器：")
     hr()
