@@ -107,10 +107,13 @@ def pause():
     input("\n按 Enter 返回主菜单...")
 
 
-def fmt_price(val) -> str:
-    if val is None:
+def fmt_price(e: dict) -> str:
+    per_gpu = e.get("price_per_gpu")
+    gpu_count = e.get("gpu_count") or 1
+    if per_gpu is None:
         return "N/A"
-    return f"${float(val):.4f}/hr"
+    total = float(per_gpu) * int(gpu_count)
+    return f"${total:.3f}/hr (${float(per_gpu):.3f}/GPU)"
 
 
 def fmt_gpu(item: dict) -> str:
@@ -120,15 +123,13 @@ def fmt_gpu(item: dict) -> str:
 
 
 def print_executor(idx: int, e: dict):
-    uuid = e.get("uuid") or e.get("id") or "?"
+    uuid = e.get("id") or e.get("uuid") or "?"
     gpu = fmt_gpu(e)
-    price = fmt_price(e.get("price") or e.get("price_per_hour"))
-    location = e.get("location") or e.get("country") or ""
-    ram = e.get("ram_gb") or e.get("memory_gb") or ""
-    ram_str = f"  内存: {ram}GB" if ram else ""
-    loc_str = f"  地区: {location}" if location else ""
-    print(f"  [{idx}] {gpu}  价格: {price}{ram_str}{loc_str}")
-    print(f"       UUID: {uuid}")
+    price = fmt_price(e)
+    ip = e.get("executor_ip_address") or ""
+    ip_str = f"  IP: {ip}" if ip else ""
+    print(f"  [{idx}] {gpu}  价格: {price}{ip_str}")
+    print(f"       ID: {uuid}")
 
 
 # ─── 功能模块 ─────────────────────────────────────────────────────────────────
@@ -154,14 +155,14 @@ def list_available():
     if gpu_max.isdigit():
         params["gpu_count_lte"] = int(gpu_max)
 
-    price_max = input("最高价格（美元/小时）: ").strip()
+    price_max = input("最高单卡价格（美元/小时/卡）: ").strip()
     try:
         if price_max:
             params["price_lte"] = float(price_max)
     except ValueError:
         pass
 
-    price_min = input("最低价格（美元/小时）: ").strip()
+    price_min = input("最低单卡价格（美元/小时/卡）: ").strip()
     try:
         if price_min:
             params["price_gte"] = float(price_min)
@@ -182,12 +183,6 @@ def list_available():
         print("没有找到符合条件的机器。")
         pause()
         return
-
-    # 调试：打印第一条所有字段名和值
-    if items:
-        print("[调试] 第一条记录所有字段:")
-        for k, v in items[0].items():
-            print(f"  {k}: {v}")
 
     print(f"\n找到 {len(items)} 台可用机器：")
     hr()
@@ -214,7 +209,7 @@ def rent_machine():
         params["gpu_count_gte"] = int(gpu_count)
         params["gpu_count_lte"] = int(gpu_count)
 
-    price_max = input("最高价格（美元/小时）: ").strip()
+    price_max = input("最高单卡价格（美元/小时/卡）: ").strip()
     try:
         if price_max:
             params["price_lte"] = float(price_max)
@@ -258,7 +253,7 @@ def rent_machine():
         pause()
         return
 
-    print(f"\n已选择: {fmt_gpu(executor)}  价格: {fmt_price(executor.get('price') or executor.get('price_per_hour'))}")
+    print(f"\n已选择: {fmt_gpu(executor)}  价格: {fmt_price(executor)}")
     hr()
 
     # 租用参数
@@ -318,8 +313,8 @@ def list_my_pods():
         pod_id = pod.get("id") or pod.get("uuid") or "?"
         status = pod.get("status") or pod.get("state") or "未知"
         gpu = fmt_gpu(pod)
-        price = fmt_price(pod.get("price") or pod.get("price_per_hour"))
-        ip = pod.get("ip") or pod.get("host") or ""
+        price = fmt_price(pod)
+        ip = pod.get("ip") or pod.get("executor_ip_address") or ""
         ip_str = f"  IP: {ip}" if ip else ""
         print(f"  [{i}] ID: {pod_id}")
         print(f"       状态: {status}  GPU: {gpu}  价格: {price}{ip_str}")
