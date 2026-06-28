@@ -134,57 +134,102 @@ def print_executor(idx: int, e: dict):
 
 # ─── 功能模块 ─────────────────────────────────────────────────────────────────
 
+def fetch_all_executors() -> list:
+    """拉取所有可用机器（自动翻页）"""
+    all_items = []
+    page = 1
+    while True:
+        data = api_get("/executors", params={"page": page, "size": 100})
+        if data is None:
+            break
+        items = data if isinstance(data, list) else data.get("items") or data.get("data") or data.get("executors") or []
+        if not items:
+            break
+        all_items.extend(items)
+        # 如果返回数量少于100，说明已是最后一页
+        if len(items) < 100:
+            break
+        page += 1
+    return all_items
+
+
+def filter_executors(items: list, gpu_name: str, gpu_min: int, gpu_max: int,
+                     price_min: float, price_max: float) -> list:
+    """本地过滤机器列表"""
+    result = []
+    for e in items:
+        count = int(e.get("gpu_count") or 1)
+        price = e.get("price_per_gpu")
+        name = (e.get("machine_name") or "").lower()
+
+        if gpu_name and gpu_name.lower() not in name:
+            continue
+        if gpu_min is not None and count < gpu_min:
+            continue
+        if gpu_max is not None and count > gpu_max:
+            continue
+        if price is not None:
+            p = float(price)
+            if price_min is not None and p < price_min:
+                continue
+            if price_max is not None and p > price_max:
+                continue
+        result.append(e)
+    return result
+
+
 def list_available():
     """查看可用机器"""
     print("\n=== 查看可用机器 ===")
     hr()
 
-    params = {}
-
-    # 筛选条件
     print("可设置筛选条件（直接回车跳过）：")
-    gpu_name = input("GPU 型号（如 RTX4090, A100）: ").strip()
-    if gpu_name:
-        params["machine_names"] = gpu_name
+    gpu_name = input("GPU 型号（如 RTX4090, A100, H100）: ").strip()
 
-    gpu_min = input("最少 GPU 数量: ").strip()
-    if gpu_min.isdigit():
-        params["gpu_count_gte"] = int(gpu_min)
+    gpu_min = None
+    v = input("最少 GPU 数量: ").strip()
+    if v.isdigit():
+        gpu_min = int(v)
 
-    gpu_max = input("最多 GPU 数量: ").strip()
-    if gpu_max.isdigit():
-        params["gpu_count_lte"] = int(gpu_max)
+    gpu_max = None
+    v = input("最多 GPU 数量: ").strip()
+    if v.isdigit():
+        gpu_max = int(v)
 
-    price_max = input("最高单卡价格（美元/小时/卡）: ").strip()
+    price_max = None
+    v = input("最高单卡价格（美元/小时/卡）: ").strip()
     try:
-        if price_max:
-            params["price_lte"] = float(price_max)
+        if v:
+            price_max = float(v)
     except ValueError:
         pass
 
-    price_min = input("最低单卡价格（美元/小时/卡）: ").strip()
+    price_min = None
+    v = input("最低单卡价格（美元/小时/卡）: ").strip()
     try:
-        if price_min:
-            params["price_gte"] = float(price_min)
+        if v:
+            price_min = float(v)
     except ValueError:
         pass
-
-    params["size"] = 50
 
     print("\n查询中...")
-    data = api_get("/executors", params=params)
-    if data is None:
+    all_items = fetch_all_executors()
+    if not all_items:
+        print("查询失败或暂无可用机器。")
         pause()
         return
 
-    items = data if isinstance(data, list) else data.get("items") or data.get("data") or data.get("executors") or []
+    items = filter_executors(all_items, gpu_name, gpu_min, gpu_max, price_min, price_max)
 
     if not items:
-        print("没有找到符合条件的机器。")
+        print(f"没有找到符合条件的机器（共查到 {len(all_items)} 台，均不符合筛选条件）。")
         pause()
         return
 
-    print(f"\n找到 {len(items)} 台可用机器：")
+    # 按单卡价格排序
+    items.sort(key=lambda e: float(e.get("price_per_gpu") or 0))
+
+    print(f"\n找到 {len(items)} 台可用机器（共 {len(all_items)} 台中筛选）：")
     hr()
     for i, e in enumerate(items, 1):
         print_executor(i, e)
@@ -197,37 +242,34 @@ def rent_machine():
     print("\n=== 租用机器 ===")
     hr()
 
-    # 先查询可用机器
-    params = {}
     print("设置筛选条件查找机器（直接回车跳过）：")
-    gpu_name = input("GPU 型号（如 RTX4090, A100）: ").strip()
-    if gpu_name:
-        params["machine_names"] = gpu_name
+    gpu_name = input("GPU 型号（如 RTX4090, A100, H100）: ").strip()
 
-    gpu_count = input("GPU 数量: ").strip()
-    if gpu_count.isdigit():
-        params["gpu_count_gte"] = int(gpu_count)
-        params["gpu_count_lte"] = int(gpu_count)
+    gpu_count = None
+    v = input("GPU 数量: ").strip()
+    if v.isdigit():
+        gpu_count = int(v)
 
-    price_max = input("最高单卡价格（美元/小时/卡）: ").strip()
+    price_max = None
+    v = input("最高单卡价格（美元/小时/卡）: ").strip()
     try:
-        if price_max:
-            params["price_lte"] = float(price_max)
+        if v:
+            price_max = float(v)
     except ValueError:
         pass
 
-    params["size"] = 20
-
     print("\n查询中...")
-    data = api_get("/executors", params=params)
-    if data is None:
+    all_items = fetch_all_executors()
+    if not all_items:
+        print("查询失败或暂无可用机器。")
         pause()
         return
 
-    items = data if isinstance(data, list) else data.get("items") or data.get("data") or []
+    items = filter_executors(all_items, gpu_name, gpu_count, gpu_count, None, price_max)
+    items.sort(key=lambda e: float(e.get("price_per_gpu") or 0))
 
     if not items:
-        print("没有找到符合条件的机器。")
+        print(f"没有找到符合条件的机器（共 {len(all_items)} 台均不符合）。")
         pause()
         return
 
