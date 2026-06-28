@@ -10,9 +10,9 @@ echo.
 :: 查找系统 Python（排除所有 venv 目录）
 set PYTHON_CMD=
 
-:: 用 where 找所有 python，过滤掉 venv/virtualenv 路径
+:: 用 where 找所有 python，过滤掉含 venv 的路径
 for /f "tokens=*" %%p in ('where python 2^>nul') do (
-    echo %%p | findstr /i "venv Scripts\\python" >nul 2>&1
+    echo %%p | findstr /i "venv" >nul 2>&1
     if %errorlevel% neq 0 (
         if not defined PYTHON_CMD (
             "%%p" -m pip --version >nul 2>&1
