@@ -7,12 +7,26 @@ echo    Lium GPU 管理工具 - 一键安装
 echo ============================================
 echo.
 
-:: 检查是否有 Python
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
+:: 查找系统 Python（优先用 py 启动器，避免调用 venv 里的 Python）
+set PYTHON_CMD=
+py -3 --version >nul 2>&1
+if %errorlevel% equ 0 (
+    set PYTHON_CMD=py -3
+) else (
+    :: 从注册表查找系统级 Python
+    for /f "tokens=2*" %%a in ('reg query "HKCU\Software\Python\PythonCore" /s /v ExecutablePath 2^>nul ^| findstr /i "python.exe"') do (
+        if not defined PYTHON_CMD set "PYTHON_CMD=%%b"
+    )
+    if not defined PYTHON_CMD (
+        for /f "tokens=2*" %%a in ('reg query "HKLM\Software\Python\PythonCore" /s /v ExecutablePath 2^>nul ^| findstr /i "python.exe"') do (
+            if not defined PYTHON_CMD set "PYTHON_CMD=%%b"
+        )
+    )
+)
+
+if not defined PYTHON_CMD (
     echo [!] 未检测到 Python，正在下载安装...
     echo.
-    :: 下载 Python 安装包
     curl -L -o "%TEMP%\python_installer.exe" "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe"
     if %errorlevel% neq 0 (
         echo [错误] Python 下载失败，请手动安装 Python 后重试。
@@ -27,12 +41,12 @@ if %errorlevel% neq 0 (
         pause
         exit /b 1
     )
-    :: 刷新环境变量
     call :RefreshPath
+    set PYTHON_CMD=py -3
     echo [√] Python 安装完成
     echo.
 ) else (
-    for /f "tokens=*" %%v in ('python --version 2^>^&1') do echo [√] 已检测到 %%v
+    for /f "tokens=*" %%v in ('"%PYTHON_CMD%" --version 2^>^&1') do echo [√] 已检测到 %%v
     echo.
 )
 
@@ -60,7 +74,7 @@ echo [√] 文件下载完成
 
 echo.
 echo [2/3] 安装依赖库...
-python -m pip install requests --quiet
+"%PYTHON_CMD%" -m pip install requests --quiet
 if %errorlevel% neq 0 (
     echo [错误] 依赖安装失败。
     pause
@@ -75,7 +89,7 @@ set SHORTCUT=%USERPROFILE%\Desktop\Lium管理工具.bat
     echo @echo off
     echo chcp 65001 ^>nul
     echo cd /d "%INSTALL_DIR%"
-    echo python lium.py
+    echo "%PYTHON_CMD%" lium.py
     echo pause
 ) > "%SHORTCUT%"
 echo [√] 桌面快捷方式已创建
@@ -95,7 +109,7 @@ echo.
 set /p START=是否立即启动程序？(y/n):
 if /i "%START%"=="y" (
     cd /d "%INSTALL_DIR%"
-    python lium.py
+    "%PYTHON_CMD%" lium.py
 )
 
 exit /b 0
